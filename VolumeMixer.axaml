@@ -162,7 +162,7 @@
     
     <UserControl.Styles>
         
-        <!-- Button Square -->
+        <!-- Button Square Base Style -->
         <Style Selector="Button.square">
             <Setter Property="Width" Value="16"/>
             <Setter Property="Height" Value="16"/>
@@ -172,18 +172,23 @@
             <Setter Property="MaxHeight" Value="16"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Background" Value="#2A2A2A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#555555"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
-
-        <Style>
-            <Style.Resources>
-                <FontFamily x:Key="PressStart2P">avares://Docklys.ModuleContracts/Assets/Fonts/PressStart2P-Regular.ttf#Press Start 2P</FontFamily>
-            </Style.Resources>
+        <!-- Button Square Hover State -->
+        <Style Selector="Button.square:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#424242"/>
         </Style>
-        
-        <!-- Button Style -->
+
+        <!-- Button Square Pressed State -->
+        <Style Selector="Button.square:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1A1A1A"/>
+        </Style>
+
+        <!-- General Button Style -->
         <Style Selector="Button">
             <Setter Property="Background" Value="#2A2A2A"/>
             <Setter Property="Foreground" Value="White"/>
@@ -191,15 +196,22 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="2"/>
         </Style>
-        
-        <Style Selector="Button:pointerover">
+
+        <!-- General Button Hover State -->
+        <Style Selector="Button:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#3A3A3A"/>
         </Style>
-        
-        <Style Selector="Button:pressed">
+
+        <!-- General Button Pressed State -->
+        <Style Selector="Button:pressed /template/ ContentPresenter">
             <Setter Property="Background" Value="#1A1A1A"/>
         </Style>
         
+        <Style>
+            <Style.Resources>
+                <FontFamily x:Key="PressStart2P">avares://Docklys.ModuleContracts/Assets/Fonts/PressStart2P-Regular.ttf#Press Start 2P</FontFamily>
+            </Style.Resources>
+        </Style>
         <!-- Style for MenuItem -->
         <!-- Style for MenuItem -->
         <Style Selector="MenuItem">
@@ -274,7 +286,8 @@
                                     ZIndex="1">
                         </StackPanel>
                         
-                        <Slider Minimum="0" 
+                        <Slider x:Name="VolumeSlider1"
+                                Minimum="0" 
                                 Maximum="100" 
                                 Orientation="Vertical" 
                                 Height="80" 
@@ -307,7 +320,8 @@
                                     ZIndex="1">
                         </StackPanel>
                         
-                        <Slider Minimum="0" 
+                        <Slider x:Name="VolumeSlider2"
+                                Minimum="0" 
                                 Maximum="100" 
                                 Orientation="Vertical" 
                                 Height="80" 
@@ -340,7 +354,8 @@
                                     ZIndex="1">
                         </StackPanel>
                         
-                        <Slider Minimum="0" 
+                        <Slider x:Name="VolumeSlider3"
+                                Minimum="0" 
                                 Maximum="100" 
                                 Orientation="Vertical" 
                                 Height="80" 
@@ -373,7 +388,8 @@
                                     ZIndex="1">
                         </StackPanel>
                         
-                        <Slider Minimum="0" 
+                        <Slider x:Name="VolumeSlider4"
+                                Minimum="0" 
                                 Maximum="100" 
                                 Orientation="Vertical" 
                                 Height="80" 
