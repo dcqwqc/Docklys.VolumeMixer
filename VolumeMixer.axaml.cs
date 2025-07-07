@@ -44,18 +44,21 @@ namespace VolumeMixer
         public string MaxAppVersion => "1.0.0";
         public string[] SupportedPlatforms => new[] { "Windows" };
 
-        // Not Imodule anymore, this is set by main app
-        public string UniqueModuleId { get; private set; }
+        // Unique Module ID (set by the main app)
+        private string _uniqueModuleId;
+        public string UniqueModuleId { get { return _uniqueModuleId; } }
 
-        public void SetModuleId(string uniquemoduleId)
+        public void SetModuleId(string uniqueModuleId)
         {
-            UniqueModuleId = uniquemoduleId;
+            _uniqueModuleId = uniqueModuleId;
         }
 
         public void PrintModuleId()
         {
             Console.WriteLine($"Module ID: {UniqueModuleId}");
         }
+
+
 
         public VolumeMixer()
         {
@@ -749,82 +752,82 @@ private void UpdateSliderSource(string sliderName, string sourceName)
 }
 
         private void UpdateSliderFromJson(Slider slider, string sliderName)
-{
-    Debug.WriteLine($"[DEBUG] === UPDATING SLIDER FROM JSON ===");
-    Debug.WriteLine($"[DEBUG] Slider name: {sliderName}");
-    Debug.WriteLine($"[DEBUG] Current slider value: {slider.Value}");
-    
-    var enumerator = new MMDeviceEnumerator();
-    var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-    var sessions = device.AudioSessionManager.Sessions;
-    
-    Debug.WriteLine($"[DEBUG] Found {sessions.Count} audio sessions");
-    
-    // List all available sessions
-    Debug.WriteLine($"[DEBUG] Available audio sessions:");
-    for (int i = 0; i < sessions.Count; i++)
-    {
-        var session = sessions[i];
-        string sessionName = GetSessionDisplayName(session);
-        Debug.WriteLine($"[DEBUG]   [{i}] {sessionName} (Volume: {session.SimpleAudioVolume.Volume:P1})");
-    }
-    
-    Debug.WriteLine("[DEBUG] Checking if slider paths exist in JSON...");
-    var sliderPaths = LoadSliderPaths();
-    
-    if (sliderPaths.ContainsKey(sliderName))
-    {
-        Debug.WriteLine($"[DEBUG] Found slider path in JSON: {sliderName} -> {sliderPaths[sliderName]}");
-        var targetSessionName = sliderPaths[sliderName];
-        
-        // Manual iteration instead of FirstOrDefault
-        AudioSessionControl sessionFromJson = null;
-        for (int i = 0; i < sessions.Count; i++)
         {
-            var session = sessions[i];
-            var sessionName = GetSessionDisplayName(session);
-            Debug.WriteLine($"[DEBUG] Comparing session '{sessionName}' with target '{targetSessionName}'");
-            
-            if (sessionName == targetSessionName)
+            Debug.WriteLine($"[DEBUG] === UPDATING SLIDER FROM JSON ===");
+            Debug.WriteLine($"[DEBUG] Slider name: {sliderName}");
+            Debug.WriteLine($"[DEBUG] Current slider value: {slider.Value}");
+    
+            var enumerator = new MMDeviceEnumerator();
+            var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            var sessions = device.AudioSessionManager.Sessions;
+    
+            Debug.WriteLine($"[DEBUG] Found {sessions.Count} audio sessions");
+    
+            // List all available sessions
+            Debug.WriteLine($"[DEBUG] Available audio sessions:");
+            for (int i = 0; i < sessions.Count; i++)
             {
-                sessionFromJson = session;
-                Debug.WriteLine($"[DEBUG] ✅ Found matching session at index {i}");
-                break;
+                var session = sessions[i];
+                string sessionName = GetSessionDisplayName(session);
+                Debug.WriteLine($"[DEBUG]   [{i}] {sessionName} (Volume: {session.SimpleAudioVolume.Volume:P1})");
             }
-        }
-        
-        if (sessionFromJson != null)
-        {
-            float sessionVolume = sessionFromJson.SimpleAudioVolume.Volume;
-            double newSliderValue = sessionVolume * 100;
-            
-            Debug.WriteLine($"[DEBUG] Loaded session from JSON: {targetSessionName}");
-            Debug.WriteLine($"[DEBUG] Session volume: {sessionVolume:P1} ({sessionVolume * 100:F1}%)");
-            Debug.WriteLine($"[DEBUG] Setting slider value: {slider.Value} -> {newSliderValue}");
-            
-            slider.Value = newSliderValue;
-            _sliderSessions[sliderName] = (sessionFromJson, slider);
-            
-            Debug.WriteLine($"[DEBUG] ✅ Successfully updated slider from JSON");
-            return;
-        }
-        else
-        {
-            Debug.WriteLine($"[DEBUG] ❌ Session from JSON not found: {targetSessionName}");
-            Debug.WriteLine($"[DEBUG] Available sessions were: {string.Join(", ", Enumerable.Range(0, sessions.Count).Select(i => GetSessionDisplayName(sessions[i])))}");
-        }
-    }
-    else
-    {
-        Debug.WriteLine($"[DEBUG] No slider path found in JSON for: {sliderName}");
-        Debug.WriteLine($"[DEBUG] Available JSON keys: {string.Join(", ", sliderPaths.Keys)}");
-    }
-
-    Debug.WriteLine("[DEBUG] Falling back to default behavior.");
-    Debug.WriteLine($"[DEBUG] Setting slider value to default: {slider.Value} -> 50");
-    slider.Value = 50; // Default value
     
-    Debug.WriteLine($"[DEBUG] === SLIDER UPDATE FROM JSON COMPLETED ===");
-}
+            Debug.WriteLine("[DEBUG] Checking if slider paths exist in JSON...");
+            var sliderPaths = LoadSliderPaths();
+    
+            if (sliderPaths.ContainsKey(sliderName))
+            {
+                Debug.WriteLine($"[DEBUG] Found slider path in JSON: {sliderName} -> {sliderPaths[sliderName]}");
+                var targetSessionName = sliderPaths[sliderName];
+                
+                // Manual iteration instead of FirstOrDefault
+                AudioSessionControl sessionFromJson = null;
+                for (int i = 0; i < sessions.Count; i++)
+                {
+                    var session = sessions[i];
+                    var sessionName = GetSessionDisplayName(session);
+                    Debug.WriteLine($"[DEBUG] Comparing session '{sessionName}' with target '{targetSessionName}'");
+                    
+                    if (sessionName == targetSessionName)
+                    {
+                        sessionFromJson = session;
+                        Debug.WriteLine($"[DEBUG] ✅ Found matching session at index {i}");
+                        break;
+                    }
+                }
+                
+                if (sessionFromJson != null)
+                {
+                    float sessionVolume = sessionFromJson.SimpleAudioVolume.Volume;
+                    double newSliderValue = sessionVolume * 100;
+                    
+                    Debug.WriteLine($"[DEBUG] Loaded session from JSON: {targetSessionName}");
+                    Debug.WriteLine($"[DEBUG] Session volume: {sessionVolume:P1} ({sessionVolume * 100:F1}%)");
+                    Debug.WriteLine($"[DEBUG] Setting slider value: {slider.Value} -> {newSliderValue}");
+                    
+                    slider.Value = newSliderValue;
+                    _sliderSessions[sliderName] = (sessionFromJson, slider);
+                    
+                    Debug.WriteLine($"[DEBUG] ✅ Successfully updated slider from JSON");
+                    return;
+                }
+                else
+                {
+                    Debug.WriteLine($"[DEBUG] ❌ Session from JSON not found: {targetSessionName}");
+                    Debug.WriteLine($"[DEBUG] Available sessions were: {string.Join(", ", Enumerable.Range(0, sessions.Count).Select(i => GetSessionDisplayName(sessions[i])))}");
+                }
+            }
+            else
+            {
+                Debug.WriteLine($"[DEBUG] No slider path found in JSON for: {sliderName}");
+                Debug.WriteLine($"[DEBUG] Available JSON keys: {string.Join(", ", sliderPaths.Keys)}");
+            }
+    
+            Debug.WriteLine("[DEBUG] Falling back to default behavior.");
+            Debug.WriteLine($"[DEBUG] Setting slider value to default: {slider.Value} -> 50");
+            slider.Value = 50; // Default value
+    
+            Debug.WriteLine($"[DEBUG] === SLIDER UPDATE FROM JSON COMPLETED ===");
+        }
     }
 }
