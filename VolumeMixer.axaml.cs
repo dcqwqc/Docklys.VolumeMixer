@@ -1,27 +1,14 @@
-using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Docklys.ModuleContracts;
 using Avalonia.Media;
-using Avalonia;
 using Avalonia.Interactivity;
-using Avalonia.Platform;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.VisualTree;
-using System;
-using System.Linq; // Add this line
 using NAudio.CoreAudioApi;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
-using Avalonia.Media.Imaging;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using System.Drawing;
-using System.Drawing.Imaging;
 using Avalonia.Threading;
-using System.IO;
 using Newtonsoft.Json;
 
 namespace VolumeMixer
@@ -58,8 +45,6 @@ namespace VolumeMixer
             Console.WriteLine($"Module ID: {UniqueModuleId}");
         }
 
-
-
         public VolumeMixer()
         {
             InitializeComponent();
@@ -68,7 +53,6 @@ namespace VolumeMixer
             this.Loaded += (s, e) =>
             {
                 UpdateAudioSessionIcons();
-                Debug.WriteLine("[DEBUG] VolumeMixer loaded and audio sessions initialized");
             };
 
             // Start the volume sync timer
@@ -108,7 +92,6 @@ namespace VolumeMixer
                     if (clickedButton != null)
                     {
                         var buttonName = clickedButton.Name ?? "";
-                        Debug.WriteLine($"[DEBUG] Manual assignment: {buttonName} -> {name}");
 
                         var icon = GetIconForSession(session);
                         if (icon != null)
@@ -119,9 +102,7 @@ namespace VolumeMixer
                             // Mark this button as having a manual icon and store the session
                             _buttonHasManualIcon[buttonName] = true;
                             _buttonSessions[buttonName] = (session, icon);
-
-                            Debug.WriteLine($"[DEBUG] Stored manual assignment for button: {buttonName}");
-
+                            
                             // Find the corresponding slider and update the session mapping
                             var sliderName = buttonName.Replace("SourceIcon", "VolumeSlider");
                             var slider = this.FindControl<Slider>(sliderName);
@@ -133,8 +114,7 @@ namespace VolumeMixer
 
                                 // Update the slider-session mapping
                                 _sliderSessions[sliderName] = (session, slider);
-
-                                Debug.WriteLine($"[DEBUG] Updated slider {sliderName} mapping to session {name}");
+                                
                             }
 
                             // Update the slider source mapping
@@ -213,7 +193,7 @@ namespace VolumeMixer
             var newText = textBox.Text?.Trim();
             if (string.IsNullOrEmpty(newText))
             {
-                newText = "Preset"; // Default name if empty
+                newText = "Preset"; // Default
             }
 
             menuItem.Header = newText;
@@ -221,54 +201,28 @@ namespace VolumeMixer
 
         private void OnPresetSelected(string preset)
         {
-            // Update the button text
-            var presetButton = this.FindControl<DropDownButton>("PresetButton");
-            if (presetButton != null)
-            {
-                presetButton.Content = preset;
-            }
-
-            // Handle the selected preset
-            switch (preset)
-            {
-                case "Gaming":
-                    // Apply gaming preset settings
-                    break;
-                case "Music":
-                    // Apply music preset settings
-                    break;
-                // ... other cases
-            }
+            //lagacy shit but idont wanna remove it
         }
 
         private IImage? GetIconForSession(AudioSessionControl session)
         {
             try
             {
-                Debug.WriteLine($"[DEBUG] Getting icon for session: {session.DisplayName}");
-
+                
                 var processId = (int)session.GetProcessID;
-                Debug.WriteLine($"[DEBUG] Process ID: {processId}");
-
+                
                 var process = Process.GetProcessById(processId);
-                Debug.WriteLine($"[DEBUG] Process name: {process.ProcessName}");
-                Debug.WriteLine($"[DEBUG] Main module path: {process.MainModule?.FileName ?? "NULL"}");
-
                 if (process.MainModule?.FileName == null)
                 {
-                    Debug.WriteLine("[DEBUG] No main module filename found");
                     return null;
                 }
 
                 var icon = Icon.ExtractAssociatedIcon(process.MainModule.FileName);
                 if (icon == null)
                 {
-                    Debug.WriteLine("[DEBUG] No icon extracted from file");
                     return null;
                 }
-
-                Debug.WriteLine("[DEBUG] Icon extracted successfully, applying grayscale filter");
-
+                
                 // Convert to bitmap and apply grayscale + white tint
                 using (var originalBitmap = icon.ToBitmap())
                 {
@@ -278,12 +232,7 @@ namespace VolumeMixer
                     {
                         processedBitmap.Save(stream, ImageFormat.Png);
                         stream.Seek(0, SeekOrigin.Begin);
-
-                        Debug.WriteLine($"[DEBUG] Processed icon saved to stream, size: {stream.Length} bytes");
-
                         var avaloniaBitmap = new Avalonia.Media.Imaging.Bitmap(stream);
-                        Debug.WriteLine($"[DEBUG] Avalonia bitmap created: {avaloniaBitmap.PixelSize.Width}x{avaloniaBitmap.PixelSize.Height}");
-
                         processedBitmap.Dispose();
                         return avaloniaBitmap;
                     }
@@ -297,8 +246,6 @@ namespace VolumeMixer
 
                 Console.WriteLine($"Failed to get icon: {ex.Message}");
             }
-
-            Debug.WriteLine("[DEBUG] Returning null icon");
             return null;
         }
 
@@ -352,8 +299,6 @@ namespace VolumeMixer
                     processed.SetPixel(x, y, System.Drawing.Color.FromArgb(pixel.A, finalValue, finalValue, finalValue));
                 }
             }
-
-            Debug.WriteLine($"[DEBUG] Applied high contrast grayscale (multiplier: {contrastMultiplier}, threshold: {contrastThreshold})");
             return processed;
         }
         private void SetIconToButton(Button button, IImage? icon)
@@ -378,7 +323,6 @@ namespace VolumeMixer
 
         private void UpdateAudioSessionIcons()
 {
-    Debug.WriteLine("[DEBUG] === STARTING UpdateAudioSessionIcons ===");
 
     var buttons = new[] {
         this.FindControl<Button>("SourceIcon1"),
@@ -397,11 +341,9 @@ namespace VolumeMixer
     var enumerator = new MMDeviceEnumerator();
     var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
     var sessions = device.AudioSessionManager.Sessions;
-
-    Debug.WriteLine($"[DEBUG] Found {sessions.Count} audio sessions");
+    
 
     // First, try to load from JSON for each slider
-    Debug.WriteLine("[DEBUG] === ATTEMPTING TO LOAD FROM JSON FIRST ===");
     for (int i = 0; i < sliders.Length; i++)
     {
         var slider = sliders[i];
@@ -409,7 +351,6 @@ namespace VolumeMixer
         
         if (slider != null)
         {
-            Debug.WriteLine($"[DEBUG] Attempting to load slider {sliderName} from JSON...");
             UpdateSliderFromJson(slider, sliderName);
         }
     }
@@ -424,13 +365,9 @@ namespace VolumeMixer
 
         if (button != null && slider != null)
         {
-            Debug.WriteLine($"[DEBUG] Processing button/slider pair: {buttonName}/{sliderName}");
-            
             // Check if this button has a manual assignment
             if (_buttonHasManualIcon.ContainsKey(buttonName) && _buttonHasManualIcon[buttonName])
             {
-                Debug.WriteLine($"[DEBUG] Button {buttonName} has manual assignment - preserving it");
-
                 // Use the manually assigned session
                 if (_buttonSessions.ContainsKey(buttonName))
                 {
@@ -450,8 +387,6 @@ namespace VolumeMixer
 
                     // Store the session-slider relationship
                     _sliderSessions[sliderName] = (manualSession, slider);
-
-                    Debug.WriteLine($"[DEBUG] Preserved manual assignment for {buttonName} -> {GetSessionDisplayName(manualSession)}");
                 }
                 continue; // Skip auto-assignment for this button
             }
@@ -459,12 +394,8 @@ namespace VolumeMixer
             // Check if this slider was already loaded from JSON
             if (_sliderSessions.ContainsKey(sliderName))
             {
-                Debug.WriteLine($"[DEBUG] Slider {sliderName} was loaded from JSON, setting up corresponding button");
-                
                 var (jsonSession, _) = _sliderSessions[sliderName];
                 var icon = GetIconForSession(jsonSession);
-                
-                Debug.WriteLine($"[DEBUG] Setting button {buttonName} icon for JSON-loaded session {GetSessionDisplayName(jsonSession)}");
                 SetIconToButton(button, icon);
                 
                 // Remove previous handlers
@@ -480,9 +411,7 @@ namespace VolumeMixer
             {
                 var session = sessions[i];
                 var icon = GetIconForSession(session);
-
-                Debug.WriteLine($"[DEBUG] Auto-assigning session {GetSessionDisplayName(session)} to button {buttonName}");
-
+                
                 SetIconToButton(button, icon);
 
                 // Set initial slider value from current session volume
@@ -499,7 +428,6 @@ namespace VolumeMixer
             }
             else
             {
-                Debug.WriteLine($"[DEBUG] No session available for button {buttonName}");
                 // Clear button if no session available
                 SetIconToButton(button, null);
                 if (_sliderSessions.ContainsKey(sliderName))
@@ -510,7 +438,6 @@ namespace VolumeMixer
         }
     }
     
-    Debug.WriteLine("[DEBUG] === COMPLETED UpdateAudioSessionIcons ===");
 }
 
         private void OnSliderValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
@@ -520,9 +447,7 @@ namespace VolumeMixer
                 var sliderName = slider.Name ?? "Unknown";
                 var oldValue = e.OldValue;
                 var newValue = e.NewValue;
-
-                Debug.WriteLine($"[DEBUG] SLIDER CHANGED - {sliderName}: {oldValue:F1}% → {newValue:F1}%");
-
+                
                 if (_sliderSessions.ContainsKey(sliderName))
                 {
                     var (session, _) = _sliderSessions[sliderName];
@@ -533,43 +458,25 @@ namespace VolumeMixer
 
                         // Convert slider value (0-100) to volume (0.0-1.0)
                         float newSystemVolume = (float)(newValue / 100.0);
-
-                        Debug.WriteLine($"[DEBUG] VOLUME UPDATE - {sessionName}:");
-                        Debug.WriteLine($"[DEBUG]   System Volume: {oldSystemVolume:P1} → {newSystemVolume:P1}");
-                        Debug.WriteLine($"[DEBUG]   Slider Value: {oldValue:F1}% → {newValue:F1}%");
-
+                        
                         session.SimpleAudioVolume.Volume = newSystemVolume;
 
                         // Verify the change was applied
                         float actualVolume = session.SimpleAudioVolume.Volume;
-                        Debug.WriteLine($"[DEBUG]   Actual Result: {actualVolume:P1} ({actualVolume * 100:F1}%)");
-
-                        if (Math.Abs(actualVolume - newSystemVolume) > 0.01f)
-                        {
-                            Debug.WriteLine($"[DEBUG]   ⚠️  WARNING: Volume not set correctly! Expected {newSystemVolume:P1}, got {actualVolume:P1}");
-                        }
-                        else
-                        {
-                            Debug.WriteLine($"[DEBUG]   ✅ Volume successfully updated for {sessionName}");
-                        }
-                    }
+                                            }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[DEBUG] ❌ ERROR setting volume for slider {sliderName}: {ex.Message}");
-                        Debug.WriteLine($"[DEBUG]   Exception Type: {ex.GetType().Name}");
-                        Debug.WriteLine($"[DEBUG]   Stack Trace: {ex.StackTrace}");
+                        
+                        
                     }
                 }
                 else
                 {
-                    Debug.WriteLine($"[DEBUG] ⚠️  WARNING: No session found for slider {sliderName}");
-                    Debug.WriteLine($"[DEBUG]   Available sliders: {string.Join(", ", _sliderSessions.Keys)}");
                 }
             }
             else
             {
-                Debug.WriteLine($"[DEBUG] ❌ ERROR: Sender is not a Slider, got {sender?.GetType().Name ?? "null"}");
-            }
+                            }
         }
         private void UpdateVolumesFromSessions(object? state)
         {
@@ -591,13 +498,8 @@ namespace VolumeMixer
                         // Only update if different to avoid feedback loops
                         if (Math.Abs(currentSliderValue - expectedSliderValue) > 1)
                         {
-                            Debug.WriteLine($"[DEBUG] SYNC UPDATE - {sessionName} (Slider: {sliderName}):");
-                            Debug.WriteLine($"[DEBUG]   System Volume: {systemVolume:P1} ({systemVolume * 100:F1}%)");
-                            Debug.WriteLine($"[DEBUG]   Slider Value: {currentSliderValue:F1}% → {expectedSliderValue:F1}%");
-
                             slider.Value = expectedSliderValue;
-
-                            Debug.WriteLine($"[DEBUG]   ✅ Synced slider to system volume");
+                            
                         }
                     }
                     catch (Exception ex)
@@ -634,11 +536,7 @@ namespace VolumeMixer
             string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Docklys", "VolumeMixer");
             Directory.CreateDirectory(appDataPath);
             string filePath = Path.Combine(appDataPath, $"VolumeMixer_{moduleId}.json");
-    
-            Debug.WriteLine($"[DEBUG] JSON file path: {filePath}");
-            Debug.WriteLine($"[DEBUG] Module ID: {moduleId}");
-            Debug.WriteLine($"[DEBUG] App data path: {appDataPath}");
-    
+
             return filePath;
         }
 
@@ -646,31 +544,21 @@ namespace VolumeMixer
         {
             string filePath = GetJsonFilePath();
             string jsonContent = JsonConvert.SerializeObject(sliderPaths, Formatting.Indented);
-    
-            Debug.WriteLine($"[DEBUG] === SAVING SLIDER PATHS ===");
-            Debug.WriteLine($"[DEBUG] File path: {filePath}");
-            Debug.WriteLine($"[DEBUG] Number of entries to save: {sliderPaths.Count}");
-            Debug.WriteLine($"[DEBUG] JSON content to save:");
-            Debug.WriteLine(jsonContent);
-    
+
             try
             {
                 File.WriteAllText(filePath, jsonContent);
-                Debug.WriteLine($"[DEBUG] ✅ Successfully saved slider paths to JSON");
-        
+
                 // Verify the file was written
                 if (File.Exists(filePath))
                 {
                     var fileInfo = new FileInfo(filePath);
-                    Debug.WriteLine($"[DEBUG] File size: {fileInfo.Length} bytes");
-                    Debug.WriteLine($"[DEBUG] Last modified: {fileInfo.LastWriteTime}");
+
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[DEBUG] ❌ ERROR saving slider paths: {ex.Message}");
                 Debug.WriteLine($"[DEBUG] Exception type: {ex.GetType().Name}");
-                Debug.WriteLine($"[DEBUG] Stack trace: {ex.StackTrace}");
             }
         }
 
@@ -679,119 +567,81 @@ public Dictionary<string, string> LoadSliderPaths()
 {
     string filePath = GetJsonFilePath();
     
-    Debug.WriteLine($"[DEBUG] === LOADING SLIDER PATHS ===");
-    Debug.WriteLine($"[DEBUG] File path: {filePath}");
-    Debug.WriteLine($"[DEBUG] File exists: {File.Exists(filePath)}");
-    
+
     if (File.Exists(filePath))
     {
         try
         {
             var fileInfo = new FileInfo(filePath);
-            Debug.WriteLine($"[DEBUG] File size: {fileInfo.Length} bytes");
-            Debug.WriteLine($"[DEBUG] Last modified: {fileInfo.LastWriteTime}");
-            
+
             string jsonContent = File.ReadAllText(filePath);
-            Debug.WriteLine($"[DEBUG] Raw JSON content from file:");
-            Debug.WriteLine(jsonContent);
-            
+
             var sliderPaths = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonContent);
-            
+
             if (sliderPaths != null)
             {
-                Debug.WriteLine($"[DEBUG] Successfully loaded {sliderPaths.Count} slider paths:");
-                foreach (var kvp in sliderPaths)
-                {
-                    Debug.WriteLine($"[DEBUG]   {kvp.Key} -> {kvp.Value}");
-                }
+
             }
             else
-            {
-                Debug.WriteLine($"[DEBUG] ⚠️  Deserialization returned null, creating empty dictionary");
+            { 
                 sliderPaths = new Dictionary<string, string>();
             }
-            
+
             return sliderPaths;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[DEBUG] ❌ ERROR loading slider paths: {ex.Message}");
-            Debug.WriteLine($"[DEBUG] Exception type: {ex.GetType().Name}");
-            Debug.WriteLine($"[DEBUG] Stack trace: {ex.StackTrace}");
-            Debug.WriteLine($"[DEBUG] Returning empty dictionary due to error");
             return new Dictionary<string, string>();
         }
     }
     else
     {
-        Debug.WriteLine($"[DEBUG] File doesn't exist, returning empty dictionary");
         return new Dictionary<string, string>();
     }
 }
 
 private void UpdateSliderSource(string sliderName, string sourceName)
 {
-    Debug.WriteLine($"[DEBUG] === UPDATING SLIDER SOURCE ===");
-    Debug.WriteLine($"[DEBUG] Slider name: {sliderName}");
-    Debug.WriteLine($"[DEBUG] Source name: {sourceName}");
-    
+
     // Load existing slider paths
     var sliderPaths = LoadSliderPaths();
-    Debug.WriteLine($"[DEBUG] Loaded {sliderPaths.Count} existing slider paths");
-    
+
     // Update the mapping
     string oldValue = sliderPaths.ContainsKey(sliderName) ? sliderPaths[sliderName] : "NOT_SET";
     sliderPaths[sliderName] = sourceName;
-    
-    Debug.WriteLine($"[DEBUG] Updated mapping: {sliderName} -> {oldValue} to {sourceName}");
-    
+
     // Save the updated paths
     SaveSliderPaths(sliderPaths);
     
-    Debug.WriteLine($"[DEBUG] ✅ Slider source update completed");
 }
 
         private void UpdateSliderFromJson(Slider slider, string sliderName)
         {
-            Debug.WriteLine($"[DEBUG] === UPDATING SLIDER FROM JSON ===");
-            Debug.WriteLine($"[DEBUG] Slider name: {sliderName}");
-            Debug.WriteLine($"[DEBUG] Current slider value: {slider.Value}");
-    
             var enumerator = new MMDeviceEnumerator();
             var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             var sessions = device.AudioSessionManager.Sessions;
-    
-            Debug.WriteLine($"[DEBUG] Found {sessions.Count} audio sessions");
-    
+            
+
             // List all available sessions
-            Debug.WriteLine($"[DEBUG] Available audio sessions:");
-            for (int i = 0; i < sessions.Count; i++)
+                        for (int i = 0; i < sessions.Count; i++)
             {
                 var session = sessions[i];
                 string sessionName = GetSessionDisplayName(session);
-                Debug.WriteLine($"[DEBUG]   [{i}] {sessionName} (Volume: {session.SimpleAudioVolume.Volume:P1})");
             }
-    
-            Debug.WriteLine("[DEBUG] Checking if slider paths exist in JSON...");
             var sliderPaths = LoadSliderPaths();
-    
+
             if (sliderPaths.ContainsKey(sliderName))
-            {
-                Debug.WriteLine($"[DEBUG] Found slider path in JSON: {sliderName} -> {sliderPaths[sliderName]}");
-                var targetSessionName = sliderPaths[sliderName];
-                
+            { var targetSessionName = sliderPaths[sliderName];
+
                 // Manual iteration instead of FirstOrDefault
                 AudioSessionControl sessionFromJson = null;
                 for (int i = 0; i < sessions.Count; i++)
                 {
                     var session = sessions[i];
                     var sessionName = GetSessionDisplayName(session);
-                    Debug.WriteLine($"[DEBUG] Comparing session '{sessionName}' with target '{targetSessionName}'");
-                    
                     if (sessionName == targetSessionName)
                     {
                         sessionFromJson = session;
-                        Debug.WriteLine($"[DEBUG] ✅ Found matching session at index {i}");
                         break;
                     }
                 }
@@ -801,33 +651,20 @@ private void UpdateSliderSource(string sliderName, string sourceName)
                     float sessionVolume = sessionFromJson.SimpleAudioVolume.Volume;
                     double newSliderValue = sessionVolume * 100;
                     
-                    Debug.WriteLine($"[DEBUG] Loaded session from JSON: {targetSessionName}");
-                    Debug.WriteLine($"[DEBUG] Session volume: {sessionVolume:P1} ({sessionVolume * 100:F1}%)");
-                    Debug.WriteLine($"[DEBUG] Setting slider value: {slider.Value} -> {newSliderValue}");
-                    
                     slider.Value = newSliderValue;
                     _sliderSessions[sliderName] = (sessionFromJson, slider);
                     
-                    Debug.WriteLine($"[DEBUG] ✅ Successfully updated slider from JSON");
                     return;
                 }
                 else
                 {
-                    Debug.WriteLine($"[DEBUG] ❌ Session from JSON not found: {targetSessionName}");
-                    Debug.WriteLine($"[DEBUG] Available sessions were: {string.Join(", ", Enumerable.Range(0, sessions.Count).Select(i => GetSessionDisplayName(sessions[i])))}");
                 }
             }
             else
             {
-                Debug.WriteLine($"[DEBUG] No slider path found in JSON for: {sliderName}");
-                Debug.WriteLine($"[DEBUG] Available JSON keys: {string.Join(", ", sliderPaths.Keys)}");
-            }
-    
-            Debug.WriteLine("[DEBUG] Falling back to default behavior.");
-            Debug.WriteLine($"[DEBUG] Setting slider value to default: {slider.Value} -> 50");
+                            }
+            
             slider.Value = 50; // Default value
-    
-            Debug.WriteLine($"[DEBUG] === SLIDER UPDATE FROM JSON COMPLETED ===");
         }
     }
 }
