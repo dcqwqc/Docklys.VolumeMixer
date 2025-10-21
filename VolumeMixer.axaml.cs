@@ -72,9 +72,7 @@ namespace VolumeMixer
         {
             var clickedButton = sender as Button;
             if (clickedButton == null) return;
-
-            // Create a custom popup with card-style items
-            // Fixed popup size per user request
+            
             const double fixedPopupSize = 100;
             var popup = new Popup
             {
@@ -82,38 +80,32 @@ namespace VolumeMixer
                 PlacementTarget = this,
                 IsLightDismissEnabled = true,
                 Width = fixedPopupSize,
-                Height = fixedPopupSize
+                Height = fixedPopupSize,
+                // Shift the popup slightly right to correct a 10px left offset
+                HorizontalOffset = 10,
+                VerticalOffset = 1
             };
 
             var container = new Border
             {
-                Background = GetAppBrush("ColorModuleBackground", Color.FromArgb(255, 28, 28, 30)),
-                // no rounded corners per request
+                Background = GetAppBrush("ColorModuleColor", Color.FromArgb(255, 28, 28, 30)),
                 CornerRadius = new Avalonia.CornerRadius(0),
                 Padding = new Avalonia.Thickness(4),
-                BoxShadow = new BoxShadows(new BoxShadow
-                {
-                    Blur = 20,
-                    Color = Color.FromArgb(100, 0, 0, 0),
-                    OffsetY = 4
-                }),
-                // fixed container size to match popup
+                
                 Width = fixedPopupSize,
                 Height = fixedPopupSize
             };
-
-            // Get active audio sessions first to count them
+            
             var enumerator = new MMDeviceEnumerator();
             var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             var sessions = device.AudioSessionManager.Sessions;
-
-            // Filter out disallowed/system sessions
+            
             var validSessions = new List<(AudioSessionControl session, string name, IImage icon)>();
             for (int i = 0; i < sessions.Count; i++)
             {
                 var session = sessions[i];
 
-                // Skip known system/disallowed sessions (e.g. SystemSounds, SystemRoot)
+                // Skip known disallowed sessions (e.g. SystemSounds, SystemRoot)
                 if (IsDisallowedSession(session))
                     continue;
 
@@ -121,8 +113,7 @@ namespace VolumeMixer
                 var icon = GetIconForSession(session);
                 validSessions.Add((session, name, icon));
             }
-
-            // We'll use a simple 3-row Grid (top spacer, content, bottom spacer) to guarantee vertical centering
+            
             var grid = new Grid
             {
                 RowDefinitions = new RowDefinitions("*,Auto,*")
@@ -151,21 +142,18 @@ namespace VolumeMixer
             }
             else
             {
-                // Calculate dynamic spacing and button height
-                double spacing = itemsPanel.Spacing; // vertical spacing between items
-                // Use the container's inner height (container.Height minus padding) to compute comfortable button height
+               
+                double spacing = itemsPanel.Spacing;
+                
                 double availableHeight = container.Height - (container.Padding.Top + container.Padding.Bottom);
                 if (double.IsNaN(availableHeight) || availableHeight <= 0)
                     availableHeight = 102; // fallback
 
                 double buttonHeight = Math.Max(20.0, (availableHeight - (spacing * (validSessions.Count - 1))) / validSessions.Count);
-
-                // Add items into the middle row; the grid will ensure top/bottom spacers are equal so the list is centered
                 Grid.SetRow(itemsPanel, 1);
 
                 foreach (var (session, name, icon) in validSessions)
                 {
-                     // Create card-style button for each session
                      var sessionButton = new Button
                      {
                         HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -211,7 +199,7 @@ namespace VolumeMixer
                     contentPanel.Children.Add(textBlock);
 
                     sessionButton.Content = contentPanel;
-                    // Apply font brush to the button so fallback text/icon matches app font color
+                    
                     sessionButton.Foreground = GetAppBrush("ColorFont", Color.FromArgb(255, 255, 255, 255));
 
                     // Handle button click
@@ -223,12 +211,11 @@ namespace VolumeMixer
                         {
                             // Set the icon on the button
                             SetIconToButton(clickedButton, icon);
-
-                            // Mark this button as having a manual icon and store the session
+                            
                             _buttonHasManualIcon[buttonName] = true;
                             _buttonSessions[buttonName] = (session, icon);
                             
-                            // Find the corresponding slider and update the session mapping
+                            // Find the corresponding slider
                             var sliderName = buttonName.Replace("SourceIcon", "VolumeSlider");
                             var slider = this.FindControl<Slider>(sliderName);
 
