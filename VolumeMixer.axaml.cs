@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Docklys.ModuleContracts;
 using Avalonia.Media;
@@ -10,6 +11,9 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using Avalonia.Threading;
 using Newtonsoft.Json;
+using Avalonia.Layout;
+using Brushes = Avalonia.Media.Brushes;
+using Color = Avalonia.Media.Color;
 
 namespace VolumeMixer
 {
@@ -32,8 +36,8 @@ namespace VolumeMixer
         public string[] SupportedPlatforms => new[] { "Windows" };
 
         // Unique Module ID (set by the main app)
-        private string _uniqueModuleId;
-        public string UniqueModuleId { get { return _uniqueModuleId; } }
+        private string? _uniqueModuleId;
+        public string UniqueModuleId { get { return _uniqueModuleId ?? string.Empty; } }
 
         public void SetModuleId(string uniqueModuleId)
         {
@@ -63,37 +67,158 @@ namespace VolumeMixer
         private Dictionary<string, bool> _buttonHasManualIcon = new();
         private Dictionary<string, (AudioSessionControl session, Slider slider)> _sliderSessions = new();
         private System.Threading.Timer? _volumeUpdateTimer;
+        
         private void PresetButton_Click(object? sender, RoutedEventArgs e)
         {
-            var flyout = new MenuFlyout
+            var clickedButton = sender as Button;
+            if (clickedButton == null) return;
+
+            // Create a custom popup with card-style items
+            // Fixed popup size per user request
+            const double fixedPopupSize = 100;
+            var popup = new Popup
             {
-                Placement = PlacementMode.Center,
-                VerticalOffset = -11
+                PlacementMode = PlacementMode.Center,
+                PlacementTarget = this,
+                IsLightDismissEnabled = true,
+                Width = fixedPopupSize,
+                Height = fixedPopupSize
             };
 
-            // Get active audio sessions
+            var container = new Border
+            {
+                Background = GetAppBrush("ColorModuleBackground", Color.FromArgb(255, 28, 28, 30)),
+                // no rounded corners per request
+                CornerRadius = new Avalonia.CornerRadius(0),
+                Padding = new Avalonia.Thickness(4),
+                BoxShadow = new BoxShadows(new BoxShadow
+                {
+                    Blur = 20,
+                    Color = Color.FromArgb(100, 0, 0, 0),
+                    OffsetY = 4
+                }),
+                // fixed container size to match popup
+                Width = fixedPopupSize,
+                Height = fixedPopupSize
+            };
+
+            // Get active audio sessions first to count them
             var enumerator = new MMDeviceEnumerator();
             var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             var sessions = device.AudioSessionManager.Sessions;
 
+            // Filter out disallowed/system sessions
+            var validSessions = new List<(AudioSessionControl session, string name, IImage icon)>();
             for (int i = 0; i < sessions.Count; i++)
             {
                 var session = sessions[i];
-                var sessionIndex = i; // Capture for closure
 
-                // Try to get the display name
+                // Skip known system/disallowed sessions (e.g. SystemSounds, SystemRoot)
+                if (IsDisallowedSession(session))
+                    continue;
+
                 string name = GetSessionDisplayName(session);
+                var icon = GetIconForSession(session);
+                validSessions.Add((session, name, icon));
+            }
 
-                var menuItem = new MenuItem { Header = name };
-                menuItem.Click += (s, e) =>
+            // We'll use a simple 3-row Grid (top spacer, content, bottom spacer) to guarantee vertical centering
+            var grid = new Grid
+            {
+                RowDefinitions = new RowDefinitions("*,Auto,*")
+            };
+
+            var itemsPanel = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                Spacing = 4,
+                Margin = new Avalonia.Thickness(0)
+            };
+
+            if (validSessions.Count == 0)
+            {
+                var emptyText = new TextBlock
                 {
-                    // Get the clicked button
-                    var clickedButton = sender as Button;
-                    if (clickedButton != null)
+                    Text = "No active audio sessions",
+                    Foreground = GetAppBrush("ColorFont", Color.FromArgb(255, 142, 142, 147)),
+                    FontSize = 9,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Avalonia.Thickness(0, 8),
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap
+                };
+                itemsPanel.Children.Add(emptyText);
+            }
+            else
+            {
+                // Calculate dynamic spacing and button height
+                double spacing = itemsPanel.Spacing; // vertical spacing between items
+                // Use the container's inner height (container.Height minus padding) to compute comfortable button height
+                double availableHeight = container.Height - (container.Padding.Top + container.Padding.Bottom);
+                if (double.IsNaN(availableHeight) || availableHeight <= 0)
+                    availableHeight = 102; // fallback
+
+                double buttonHeight = Math.Max(20.0, (availableHeight - (spacing * (validSessions.Count - 1))) / validSessions.Count);
+
+                // Add items into the middle row; the grid will ensure top/bottom spacers are equal so the list is centered
+                Grid.SetRow(itemsPanel, 1);
+
+                foreach (var (session, name, icon) in validSessions)
+                {
+                     // Create card-style button for each session
+                     var sessionButton = new Button
+                     {
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        HorizontalContentAlignment = HorizontalAlignment.Left,
+                        Padding = new Avalonia.Thickness(4, 0),
+                        Background = new SolidColorBrush(Color.FromArgb(255, 44, 44, 46)),
+                        BorderThickness = new Avalonia.Thickness(0),
+                        CornerRadius = new Avalonia.CornerRadius(4),
+                        Cursor = new Cursor(StandardCursorType.Hand),
+                        Height = buttonHeight,
+                        Margin = new Avalonia.Thickness(0)
+                     };
+
+                    // Create content with icon and text
+                    var contentPanel = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 5,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+
+                    if (icon != null)
+                    {
+                        var iconImage = new Avalonia.Controls.Image
+                        {
+                            Source = icon,
+                            Width = 12,
+                            Height = 12,
+                            Stretch = Avalonia.Media.Stretch.Uniform,
+                            VerticalAlignment = VerticalAlignment.Center
+                        };
+                        contentPanel.Children.Add(iconImage);
+                    }
+
+                    var textBlock = new TextBlock
+                    {
+                        Text = name,
+                        Foreground = GetAppBrush("ColorFont", Color.FromArgb(255, 255, 255, 255)),
+                        FontSize = 9,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis
+                    };
+                    contentPanel.Children.Add(textBlock);
+
+                    sessionButton.Content = contentPanel;
+                    // Apply font brush to the button so fallback text/icon matches app font color
+                    sessionButton.Foreground = GetAppBrush("ColorFont", Color.FromArgb(255, 255, 255, 255));
+
+                    // Handle button click
+                    sessionButton.Click += (s, args) =>
                     {
                         var buttonName = clickedButton.Name ?? "";
 
-                        var icon = GetIconForSession(session);
                         if (icon != null)
                         {
                             // Set the icon on the button
@@ -114,28 +239,45 @@ namespace VolumeMixer
 
                                 // Update the slider-session mapping
                                 _sliderSessions[sliderName] = (session, slider);
-                                
                             }
 
                             // Update the slider source mapping
                             UpdateSliderSource(sliderName, name);
                         }
-                    }
-                };
 
-                flyout.Items.Add(menuItem);
+                        popup.Close();
+                    };
+
+                    // Add hover effect
+                    sessionButton.PointerEntered += (s, args) =>
+                    {
+                        sessionButton.Background = new SolidColorBrush(Color.FromArgb(255, 58, 58, 60));
+                    };
+
+                    sessionButton.PointerExited += (s, args) =>
+                    {
+                        sessionButton.Background = new SolidColorBrush(Color.FromArgb(255, 44, 44, 46));
+                    };
+
+                    itemsPanel.Children.Add(sessionButton);
+                }
             }
 
-            if (flyout.Items.Count == 0)
+            // Put the items panel into the grid's middle row and set the grid as the container content
+            grid.Children.Add(itemsPanel);
+            container.Child = grid;
+             popup.Child = container;
+
+            // Make popup background transparent after opening
+            popup.Opened += (s, e) =>
             {
-                flyout.Items.Add(new MenuItem { Header = "No active audio sessions" });
-            }
+                if (popup.Host is Panel panel)
+                {
+                    panel.Background = Brushes.Transparent;
+                }
+            };
 
-            var dockPanel = this.FindControl<DockPanel>("RootDockPanel");
-            if (dockPanel != null)
-            {
-                flyout.ShowAt(dockPanel, showAtPointer: false);
-            }
+            popup.Open();
         }
 
 
@@ -342,6 +484,44 @@ namespace VolumeMixer
     var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
     var sessions = device.AudioSessionManager.Sessions;
     
+    // Sanitize existing manual mappings: remove any mappings that reference disallowed/system sessions
+    var buttonKeysToRemove = new List<string>();
+    foreach (var kv in _buttonSessions)
+    {
+        try
+        {
+            var session = kv.Value.session;
+            if (IsDisallowedSession(session) || IsDisallowedSessionName(GetSessionDisplayName(session)))
+                buttonKeysToRemove.Add(kv.Key);
+        }
+        catch { }
+    }
+    foreach (var k in buttonKeysToRemove)
+        _buttonSessions.Remove(k);
+
+    var sliderKeysToRemove = new List<string>();
+    foreach (var kv in _sliderSessions)
+    {
+        try
+        {
+            var session = kv.Value.session;
+            if (IsDisallowedSession(session) || IsDisallowedSessionName(GetSessionDisplayName(session)))
+                sliderKeysToRemove.Add(kv.Key);
+        }
+        catch { }
+    }
+    foreach (var k in sliderKeysToRemove)
+        _sliderSessions.Remove(k);
+
+    // Build a filtered list of sessions that excludes disallowed/system sessions
+    var filteredSessions = new List<AudioSessionControl>();
+    for (int si = 0; si < sessions.Count; si++)
+    {
+        var s = sessions[si];
+        if (IsDisallowedSession(s))
+            continue;
+        filteredSessions.Add(s);
+    }
 
     // First, try to load from JSON for each slider
     for (int i = 0; i < sliders.Length; i++)
@@ -406,10 +586,10 @@ namespace VolumeMixer
                 continue; // Skip auto-assignment for this button/slider pair
             }
 
-            // Auto-assign from available sessions (skip manually assigned ones and JSON-loaded ones)
-            if (i < sessions.Count)
+            // Auto-assign from available filtered sessions (skip manually assigned ones and JSON-loaded ones)
+            if (i < filteredSessions.Count)
             {
-                var session = sessions[i];
+                var session = filteredSessions[i];
                 var icon = GetIconForSession(session);
                 
                 SetIconToButton(button, icon);
@@ -580,6 +760,17 @@ public Dictionary<string, string> LoadSliderPaths()
 
             if (sliderPaths != null)
             {
+                // Sanitize stored mappings: remove any mapping that references a disallowed session name
+                var keysToRemove = new List<string>();
+                foreach (var kv in sliderPaths)
+                {
+                    var storedName = kv.Value ?? string.Empty;
+                    if (IsDisallowedSessionName(storedName))
+                        keysToRemove.Add(kv.Key);
+                }
+
+                foreach (var k in keysToRemove)
+                    sliderPaths.Remove(k);
 
             }
             else
@@ -598,6 +789,25 @@ public Dictionary<string, string> LoadSliderPaths()
     {
         return new Dictionary<string, string>();
     }
+}
+
+private bool IsDisallowedSessionName(string name)
+{
+    if (string.IsNullOrWhiteSpace(name))
+        return false;
+
+    var n = name.Trim();
+
+    if (n.Equals("SystemSounds", StringComparison.OrdinalIgnoreCase) ||
+        n.Equals("System Sounds", StringComparison.OrdinalIgnoreCase) ||
+        n.Equals("System", StringComparison.OrdinalIgnoreCase) ||
+        n.Equals("SystemRoot", StringComparison.OrdinalIgnoreCase))
+        return true;
+
+    if (n.IndexOf("systemroot", StringComparison.OrdinalIgnoreCase) >= 0)
+        return true;
+
+    return false;
 }
 
 private void UpdateSliderSource(string sliderName, string sourceName)
@@ -638,6 +848,11 @@ private void UpdateSliderSource(string sliderName, string sourceName)
                 for (int i = 0; i < sessions.Count; i++)
                 {
                     var session = sessions[i];
+
+                    // Skip disallowed/system sessions
+                    if (IsDisallowedSession(session))
+                        continue;
+
                     var sessionName = GetSessionDisplayName(session);
                     if (sessionName == targetSessionName)
                     {
@@ -665,6 +880,65 @@ private void UpdateSliderSource(string sliderName, string sourceName)
                             }
             
             slider.Value = 50; // Default value
+        }
+
+        private bool IsDisallowedSession(AudioSessionControl session)
+        {
+            // Determine a friendly name for the session (display name or process name)
+            string name = session.DisplayName;
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                try
+                {
+                    var proc = Process.GetProcessById((int)session.GetProcessID);
+                    name = proc?.ProcessName ?? string.Empty;
+                }
+                catch
+                {
+                    name = string.Empty;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(name))
+                return false;
+
+            // Normalize for comparisons
+            var n = name.Trim();
+
+            // Disallow common system session names and specifically "SystemRoot"
+            if (n.Equals("SystemSounds", StringComparison.OrdinalIgnoreCase) ||
+                n.Equals("System Sounds", StringComparison.OrdinalIgnoreCase) ||
+                n.Equals("System", StringComparison.OrdinalIgnoreCase) ||
+                n.Equals("SystemRoot", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // Also disallow if the name contains the token systemroot (defensive)
+            if (n.IndexOf("systemroot", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            return false;
+        }
+
+        private IBrush GetAppBrush(string resourceKey, Color fallback)
+        {
+            try
+            {
+                var app = Application.Current;
+                if (app?.Resources?.ContainsKey(resourceKey) == true)
+                {
+                    var val = app.Resources[resourceKey];
+                    if (val is IBrush ib)
+                        return ib;
+                    if (val is SolidColorBrush sb)
+                        return sb;
+                }
+            }
+            catch { }
+
+            return new SolidColorBrush(fallback);
         }
     }
 }
